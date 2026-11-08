@@ -64,6 +64,68 @@ export function wallsFromReact(props, cols) {
   return { rightWalls, downWalls };
 }
 
+const WALL_PX = 6;
+
+function uniqueSorted(values) {
+  return [...new Set(values)].sort((a, b) => a - b);
+}
+
+function viewOf(el) {
+  return (el.ownerDocument && el.ownerDocument.defaultView) || globalThis;
+}
+
+function canReadPseudos(view) {
+  const ua = (view.navigator && view.navigator.userAgent) || '';
+  return !/jsdom/i.test(ua);
+}
+
+function thickBorders(el) {
+  const view = viewOf(el);
+  const styles = [view.getComputedStyle(el)];
+  if (canReadPseudos(view)) {
+    try {
+      styles.push(view.getComputedStyle(el, '::before'));
+      styles.push(view.getComputedStyle(el, '::after'));
+    } catch {
+      // Older engines may reject the pseudo-element argument.
+    }
+  }
+  let right = 0;
+  let left = 0;
+  let bottom = 0;
+  let top = 0;
+  for (const cs of styles) {
+    if (!cs) continue;
+    right = Math.max(right, parseFloat(cs.borderRightWidth) || 0);
+    left = Math.max(left, parseFloat(cs.borderLeftWidth) || 0);
+    bottom = Math.max(bottom, parseFloat(cs.borderBottomWidth) || 0);
+    top = Math.max(top, parseFloat(cs.borderTopWidth) || 0);
+  }
+  return { right, left, bottom, top };
+}
+
+/**
+ * Isolated-world wall fallback. LinkedIn paints walls as overlays whose
+ * ::after border is ~12px; React fiber is not visible outside MAIN.
+ */
+export function wallsFromDom(cells, cols) {
+  const rightWalls = [];
+  const downWalls = [];
+  for (const el of cells) {
+    const idx = Number(el.getAttribute('data-cell-idx'));
+    if (!Number.isInteger(idx)) continue;
+    const nodes = [el, ...el.querySelectorAll('*')];
+    for (const node of nodes) {
+      const sides = thickBorders(node);
+      if (sides.right >= WALL_PX) rightWalls.push(idx);
+      else if (sides.left >= WALL_PX && idx % cols !== 0) rightWalls.push(idx - 1);
+      if (sides.bottom >= WALL_PX) downWalls.push(idx);
+      else if (sides.top >= WALL_PX && idx >= cols) downWalls.push(idx - cols);
+    }
+  }
+  return { rightWalls: uniqueSorted(rightWalls), downWalls: uniqueSorted(downWalls) };
+}
+
 function readNumber(cell) {
   const el = cell.querySelector('[data-cell-content="true"]');
   if (!el) return null;
@@ -113,7 +175,9 @@ export function readBoard(root = document) {
   if (elements.some((el) => !el)) return null;
   if (!numberAt.includes(1)) return null;
 
-  const { rightWalls, downWalls } = wallsFromReact(react, n);
+  const { rightWalls, downWalls } = react
+    ? wallsFromReact(react, n)
+    : wallsFromDom(cells, n);
   return {
     rows: n,
     cols: n,
@@ -123,6 +187,45 @@ export function readBoard(root = document) {
     downWalls,
     elements,
     path: Array.isArray(react?.path) ? react.path.slice() : [],
+  };
+}
+
+export function boardStatus(root = document) {
+  const href =
+    (root.defaultView && root.defaultView.location && root.defaultView.location.href) ||
+    (typeof location !== 'undefined' ? location.href : '');
+  if (looksLikeCompletion(root)) {
+    const board = readBoard(root);
+    return {
+      ok: true,
+      identified: true,
+      hasBoard: true,
+      n: board ? board.n : null,
+      solved: true,
+      completed: true,
+    };
+  }
+
+  const board = readBoard(root);
+  if (!board) {
+    return {
+      ok: true,
+      identified: isZipUrl(href),
+      hasBoard: false,
+      n: null,
+      solved: false,
+      completed: false,
+    };
+  }
+
+  const solved = isBoardSolved(board);
+  return {
+    ok: true,
+    identified: true,
+    hasBoard: true,
+    n: board.n,
+    solved,
+    completed: solved,
   };
 }
 
@@ -206,13 +309,53 @@ export function solveBoard(board) {
   return solve(board);
 }
 
+function hasFilledCells(board) {
+  return board.elements.some((el) => el.querySelector('[data-testid="filled-cell"]'));
+}
+
+let running = false;
+
+export async function runSolve({ isCancelled } = {}) {
+  if (running) return { ok: false, error: 'already-running' };
+
+  const status = boardStatus();
+  if (status.completed || status.solved) {
+    return { ok: true, solved: true, n: status.n };
+  }
+  if (!status.hasBoard) {
+    return { ok: false, error: status.identified ? 'need-start' : 'not-zip' };
+  }
+
+  running = true;
+  try {
+    ensureBoardInteractive();
+    await sleep(250);
+    const board = readBoard();
+    if (!board) {
+      return { ok: false, error: 'need-start' };
+    }
+    const path = solveBoard(board);
+    if (!path) {
+      return { ok: false, error: 'no-solution', n: board.n };
+    }
+    const result = await applyPath(readBoard() || board, path, { isCancelled });
+    const latest = readBoard();
+    const solved = !!(latest && isBoardSolved(latest)) || result.solved || looksLikeCompletion();
+    return { ok: solved, solved, n: board.n };
+  } catch (err) {
+    return { ok: false, error: String(err && err.message ? err.message : err) };
+  } finally {
+    running = false;
+  }
+}
+
 export async function applyPath(board, path, { isCancelled } = {}) {
   if (!board || !path) return { ok: false, reason: 'missing' };
   const cancelled = () => isCancelled && isCancelled();
 
   const current = Array.isArray(board.path) ? board.path : [];
   const prefix = current.every((idx, i) => path[i] === idx);
-  if (current.length && !prefix) {
+  if ((current.length && !prefix) || (!current.length && hasFilledCells(board))) {
     resetBoard();
     await sleep(200);
   }

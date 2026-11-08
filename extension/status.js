@@ -1,5 +1,15 @@
 export function statusView(info) {
-  if (!info || info.error === 'timeout') {
+  if (info?.error === 'timeout' || info?.error === 'no-content-script') {
+    return {
+      visible: false,
+      title: 'Reload the Zip tab.',
+      detail: 'Chrome does not attach to tabs that were already open. Refresh LinkedIn Zip, then click Solve.',
+      actionEnabled: false,
+      actionLabel: 'Solve',
+      tone: 'idle',
+    };
+  }
+  if (!info) {
     return {
       visible: false,
       title: 'No Zip board on this page.',

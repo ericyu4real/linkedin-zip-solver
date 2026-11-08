@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Zip Auto Solver",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Detect a LinkedIn Zip board and draw the path when you click Solve.",
   "icons": {
     "16": "icons/icon16.png",
@@ -21,7 +21,9 @@
   },
   "permissions": ["activeTab"],
   "host_permissions": [
-    "https://www.linkedin.com/games/zip*",
+    "https://www.linkedin.com/games/*",
+    "https://linkedin.com/games/*",
+    "https://*.linkedin.com/games/*",
     "http://127.0.0.1/*",
     "http://localhost/*"
   ],
@@ -41,7 +43,9 @@
   "content_scripts": [
     {
       "matches": [
-        "https://www.linkedin.com/games/zip*",
+        "https://www.linkedin.com/games/*",
+        "https://linkedin.com/games/*",
+        "https://*.linkedin.com/games/*",
         "http://127.0.0.1/*",
         "http://localhost/*"
       ],
@@ -52,7 +56,9 @@
     },
     {
       "matches": [
-        "https://www.linkedin.com/games/zip*",
+        "https://www.linkedin.com/games/*",
+        "https://linkedin.com/games/*",
+        "https://*.linkedin.com/games/*",
         "http://127.0.0.1/*",
         "http://localhost/*"
       ],

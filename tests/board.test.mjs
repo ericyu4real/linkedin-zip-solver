@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
-import { applyPath, isBoardSolved, readBoard } from '../extension/board.js';
+import { applyPath, boardStatus, isBoardSolved, readBoard, wallsFromDom } from '../extension/board.js';
 import { solve, isValidPath } from '../extension/solver.js';
 import { board2, board2Solution, board2Walled, live601 } from './boards.mjs';
 import { renderZipFixture } from './fixture-html.mjs';
@@ -63,6 +63,42 @@ test('readBoard identifies the live #601 number layout', () => {
     assert.equal(board.numberAt[8], 1);
     assert.equal(board.numberAt[38], 14);
     assert.deepEqual(board.rightWalls, [8, 54]);
+  } finally {
+    unload(dom);
+  }
+});
+
+test('readBoard still finds the numbered grid when React fiber is missing', () => {
+  const dom = load(live601);
+  try {
+    for (const el of document.querySelectorAll('[data-cell-idx]')) {
+      for (const key of Object.keys(el).filter((k) => k.startsWith('__reactFiber$'))) {
+        delete el[key];
+      }
+    }
+    const board = readBoard();
+    assert.equal(board.n, 8);
+    assert.equal(board.numberAt[8], 1);
+    assert.equal(boardStatus().hasBoard, true);
+    assert.equal(boardStatus().identified, true);
+  } finally {
+    unload(dom);
+  }
+});
+
+test('wallsFromDom reads thick overlay borders as walls', () => {
+  const dom = load(board2);
+  try {
+    const cell = document.querySelector('[data-cell-idx="0"]');
+    const wall = document.createElement('div');
+    wall.style.borderRight = '12px solid rgb(7, 7, 7)';
+    cell.appendChild(wall);
+    const { rightWalls, downWalls } = wallsFromDom(
+      [...document.querySelectorAll('[data-cell-idx]')],
+      2,
+    );
+    assert.deepEqual(rightWalls, [0]);
+    assert.deepEqual(downWalls, []);
   } finally {
     unload(dom);
   }

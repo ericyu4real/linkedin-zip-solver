@@ -1,30 +1,8 @@
+import { boardStatus, runSolve } from './board.js';
 import { failedView, filledView, fillingView, statusView } from './status.js';
 import { mountOverlay, updateOverlay } from './overlay.js';
 
-const COMMAND = 'zip-solver-command';
-const RESULT = 'zip-solver-result';
 const DISMISS_KEY = 'zip-auto-solver-dismissed';
-
-function sendToPage(type, timeoutMs) {
-  return new Promise((resolve) => {
-    const id = `${type}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const timer = setTimeout(() => {
-      window.removeEventListener(RESULT, onResult);
-      resolve({ ok: false, error: 'timeout' });
-    }, timeoutMs);
-
-    function onResult(event) {
-      const detail = event.detail || {};
-      if (detail.id !== id) return;
-      clearTimeout(timer);
-      window.removeEventListener(RESULT, onResult);
-      resolve(detail);
-    }
-
-    window.addEventListener(RESULT, onResult);
-    window.dispatchEvent(new CustomEvent(COMMAND, { detail: { type, id } }));
-  });
-}
 
 function isDismissed() {
   try {
@@ -45,34 +23,36 @@ function dismiss() {
 
 let filling = false;
 
-async function refresh() {
+function refresh() {
   if (filling || isDismissed() || document.hidden) return;
-  const info = await sendToPage('GET_STATUS', 1500);
-  updateOverlay(statusView(info));
+  updateOverlay(statusView(boardStatus()));
 }
 
 async function fill() {
-  if (filling || isDismissed()) return;
+  if (filling || isDismissed()) return { ok: false, error: 'already-running' };
   filling = true;
   try {
-    const current = await sendToPage('GET_STATUS', 1500);
+    const current = boardStatus();
     updateOverlay(fillingView(current && current.n));
-    const result = await sendToPage('SOLVE', 45000);
+    const result = await runSolve();
     if (result?.solved || result?.ok) {
       updateOverlay(filledView(result.n));
-      return;
+      return result;
     }
     if (result?.error === 'need-start') {
       updateOverlay(statusView({ identified: true, hasBoard: false }));
-      return;
+      return result;
     }
     if (result?.error === 'not-zip') {
       updateOverlay(statusView({ identified: false, hasBoard: false }));
-      return;
+      return result;
     }
     updateOverlay(failedView(result?.error));
+    return result;
   } catch (err) {
-    updateOverlay(failedView(err && err.message ? err.message : err));
+    const error = err && err.message ? err.message : err;
+    updateOverlay(failedView(error));
+    return { ok: false, error: String(error) };
   } finally {
     filling = false;
   }
@@ -110,7 +90,10 @@ document.addEventListener('visibilitychange', () => {
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (!msg || (msg.type !== 'GET_STATUS' && msg.type !== 'SOLVE')) return undefined;
-  const timeoutMs = msg.type === 'SOLVE' ? 45000 : 2000;
-  sendToPage(msg.type, timeoutMs).then(sendResponse);
+  if (msg.type === 'GET_STATUS') {
+    sendResponse(boardStatus());
+    return undefined;
+  }
+  fill().then(sendResponse);
   return true;
 });

@@ -6,7 +6,9 @@ const hint = document.getElementById('hint');
 
 const TAB_QUERY = {
   url: [
-    'https://www.linkedin.com/games/zip*',
+    'https://www.linkedin.com/games/*',
+    'https://linkedin.com/games/*',
+    'https://*.linkedin.com/games/*',
     'http://127.0.0.1/*',
     'http://localhost/*',
   ],
@@ -19,6 +21,10 @@ function setView(view) {
   if (view.detail) hint.textContent = view.detail;
 }
 
+function looksLikeZipTab(tab) {
+  return !!(tab?.url && /\/games\/zip(\/|$|\?)/i.test(tab.url));
+}
+
 async function askTab(tabId, type) {
   return chrome.tabs.sendMessage(tabId, { type });
 }
@@ -28,9 +34,11 @@ async function findZipTab() {
   if (active?.id) {
     try {
       const info = await askTab(active.id, 'GET_STATUS');
-      if (info?.identified || info?.hasBoard) return { tab: active, info };
+      if (info?.identified || info?.hasBoard || info?.error) return { tab: active, info };
     } catch {
-      // Active tab has no solver content script.
+      if (looksLikeZipTab(active)) {
+        return { tab: active, info: { error: 'no-content-script' } };
+      }
     }
   }
 
@@ -41,7 +49,9 @@ async function findZipTab() {
       const info = await askTab(tab.id, 'GET_STATUS');
       if (info?.identified || info?.hasBoard) return { tab, info };
     } catch {
-      // Matching URL without a live content script.
+      if (looksLikeZipTab(tab)) {
+        return { tab, info: { error: 'no-content-script' } };
+      }
     }
   }
 

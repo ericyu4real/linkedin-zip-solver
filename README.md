@@ -8,7 +8,7 @@ Zip is a path puzzle: visit every cell exactly once, move only up/down/left/righ
 
 ## Why this one detects the board
 
-The Queens extension missed Queens Ultimate because it only injected on LinkedIn. This Zip extension is the other way around: it **only** injects on `linkedin.com/games/zip`. Detection was checked against the live Zip #601 board before any UI was written.
+Detection reads the numbered grid in the isolated content script. LinkedIn's CSP (`script-src-elem` + Trusted Types) blocks MAIN-world module scripts, so waiting on React fiber made the popup say "No Zip board" while the puzzle was visible. Walls fall back to the thick `::after` overlays on cells when fiber is unavailable.
 
 Live selectors, inspected 2026-11-08:
 
@@ -28,10 +28,11 @@ Open-source Zip solvers I read first (algorithms and DOM notes, not copied): [br
 2. Turn on **Developer mode**.
 3. Click **Load unpacked** and select the `extension` folder in this project (`linkedin-zip-solver/extension`).
 4. Pin **Zip Auto Solver** if you want it on the toolbar.
+5. Reload the Zip tab (Cmd+R / Ctrl+R). Chrome does not inject into tabs that were already open.
 
 ## How to use
 
-1. Open [LinkedIn Zip](https://www.linkedin.com/games/zip/) and click **Start game**.
+1. Open [LinkedIn Zip](https://www.linkedin.com/games/zip/) and click **Start game**. Reload the tab once after loading the extension.
 2. A small detector appears in the top-right when it finds an N×N board. You can also click the toolbar icon.
 3. Click **Solve**. The extension draws the path.
 

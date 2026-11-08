@@ -1,6 +1,6 @@
 {
   "name": "linkedin-zip-solver",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Chrome extension that solves LinkedIn Zip locally and draws the path on the board.",
   "type": "module",

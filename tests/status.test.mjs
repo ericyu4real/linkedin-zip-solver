@@ -7,6 +7,12 @@ test('statusView stays hidden off Zip pages', () => {
   assert.equal(statusView({ identified: false, hasBoard: false }).visible, false);
 });
 
+test('statusView tells you to reload when the content script is missing', () => {
+  const view = statusView({ error: 'no-content-script' });
+  assert.equal(view.visible, false);
+  assert.match(view.title, /reload/i);
+});
+
 test('statusView enables Solve when a board is found', () => {
   const view = statusView({ identified: true, hasBoard: true, n: 8, solved: false });
   assert.equal(view.visible, true);
