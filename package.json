@@ -2,9 +2,12 @@
   "name": "linkedin-zip-solver",
   "version": "1.0.0",
   "private": true,
-  "description": "Local Hamiltonian-path solver for LinkedIn Zip.",
+  "description": "Read a LinkedIn Zip board from the live DOM and solve the path locally.",
   "type": "module",
   "scripts": {
-    "test": "node --test tests/solver.test.mjs"
+    "test": "node --test tests/solver.test.mjs tests/board.test.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^27.0.0"
   }
 }
