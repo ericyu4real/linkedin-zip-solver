@@ -2,10 +2,10 @@
   "name": "linkedin-zip-solver",
   "version": "1.0.0",
   "private": true,
-  "description": "Read a LinkedIn Zip board from the live DOM and solve the path locally.",
+  "description": "Chrome extension that solves LinkedIn Zip locally and draws the path on the board.",
   "type": "module",
   "scripts": {
-    "test": "node --test tests/solver.test.mjs tests/board.test.mjs"
+    "test": "node --test tests/solver.test.mjs tests/board.test.mjs tests/status.test.mjs tests/overlay.test.mjs tests/popup-bridge.test.mjs"
   },
   "devDependencies": {
     "jsdom": "^27.0.0"

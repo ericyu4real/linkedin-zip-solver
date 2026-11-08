@@ -1,0 +1,64 @@
+{
+  "manifest_version": 3,
+  "name": "Zip Auto Solver",
+  "version": "1.0.0",
+  "description": "Detect a LinkedIn Zip board and draw the path when you click Solve.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "Zip Auto Solver",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "permissions": ["activeTab"],
+  "host_permissions": [
+    "https://www.linkedin.com/games/zip*",
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*.png"],
+      "matches": [
+        "https://www.linkedin.com/*",
+        "http://127.0.0.1/*",
+        "http://localhost/*"
+      ]
+    }
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.linkedin.com/games/zip*",
+        "http://127.0.0.1/*",
+        "http://localhost/*"
+      ],
+      "js": ["page.js"],
+      "type": "module",
+      "run_at": "document_idle",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://www.linkedin.com/games/zip*",
+        "http://127.0.0.1/*",
+        "http://localhost/*"
+      ],
+      "js": ["content.js"],
+      "type": "module",
+      "run_at": "document_idle"
+    }
+  ]
+}
